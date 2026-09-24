@@ -61,6 +61,7 @@ type QuickListingFormProps = {
   action: (formData: FormData) => Promise<void>;
   merchants: Merchant[];
   variants: VariantMeta[];
+  showMerchantSelector?: boolean;
 };
 
 const CONDITION_GRADES = ["A+", "A", "B", "C", "D"];
@@ -69,6 +70,7 @@ export function QuickListingForm({
   action,
   merchants,
   variants,
+  showMerchantSelector = true,
 }: QuickListingFormProps) {
   const [merchantId, setMerchantId] = useState(merchants[0]?.id ?? "");
   const [variantId, setVariantId] = useState(variants[0]?.id ?? "");
@@ -246,23 +248,25 @@ export function QuickListingForm({
         </div>
       </div>
 
-      <div className="field">
-        <label htmlFor="quick-merchant">商家</label>
-        <select
-          className="select"
-          id="quick-merchant"
-          name="merchant_id"
-          onChange={(event) => setMerchantId(event.target.value)}
-          required
-          value={merchantId}
-        >
-          {merchants.map((merchant) => (
-            <option key={merchant.id} value={merchant.id}>
-              {merchant.display_name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {showMerchantSelector ? (
+        <div className="field">
+          <label htmlFor="quick-merchant">商家</label>
+          <select
+            className="select"
+            id="quick-merchant"
+            name="merchant_id"
+            onChange={(event) => setMerchantId(event.target.value)}
+            required
+            value={merchantId}
+          >
+            {merchants.map((merchant) => (
+              <option key={merchant.id} value={merchant.id}>
+                {merchant.display_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       <div className="field">
         <label htmlFor="quick-variant">機型容量</label>
         <select

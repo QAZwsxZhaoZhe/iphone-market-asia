@@ -1176,6 +1176,164 @@ select {
   min-width: 0;
 }
 
+.seller-shell {
+  min-height: calc(100dvh - 65px);
+  background:
+    linear-gradient(180deg, #eff6ff 0, rgba(248, 250, 252, 0) 220px),
+    var(--color-background);
+}
+
+.seller-subnav {
+  display: flex;
+  width: min(100% - 32px, 1440px);
+  margin: 0 auto;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.seller-subnav::-webkit-scrollbar {
+  display: none;
+}
+
+.seller-subnav a {
+  display: inline-flex;
+  min-height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.seller-subnav a:hover {
+  border-color: var(--color-border-strong);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--color-primary);
+}
+
+.seller-facts {
+  display: grid;
+  margin: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+
+.seller-facts > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+}
+
+.seller-facts dt {
+  margin-bottom: 5px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.seller-facts dd {
+  margin: 0;
+  color: var(--color-foreground);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.seller-links {
+  display: grid;
+  padding: var(--space-md);
+  gap: var(--space-md);
+}
+
+.seller-links > a {
+  display: grid;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-md);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.seller-links > a:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.seller-links strong {
+  color: var(--color-foreground);
+  font-size: 14px;
+}
+
+.seller-links span {
+  grid-column: 1;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.seller-links svg {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--color-primary);
+}
+
+.seller-callout {
+  display: flex;
+  margin-bottom: var(--space-xl);
+  padding: 13px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: #eff6ff;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--color-primary);
+}
+
+.seller-callout > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.seller-callout > div {
+  display: grid;
+  gap: 2px;
+}
+
+.seller-callout strong {
+  color: var(--color-foreground);
+  font-size: 14px;
+}
+
+.seller-callout span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.seller-callout--warning {
+  border-color: #fcd34d;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
 .auth-page {
   display: grid;
   width: min(100% - 32px, 1020px);
@@ -2392,6 +2550,10 @@ select {
   .order-detail {
     grid-template-columns: 1fr;
   }
+
+  .seller-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
@@ -2487,13 +2649,18 @@ select {
     grid-template-columns: 110px minmax(0, 1fr) 100px 18px;
     gap: var(--space-md);
   }
+
+  .seller-links {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
   .site-header__inner,
   .page,
   .auth-page,
-  .ops-topbar__inner {
+  .ops-topbar__inner,
+  .seller-subnav {
     width: min(100% - 20px, 1440px);
   }
 
@@ -2647,6 +2814,14 @@ select {
 
   .detail-facts {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .seller-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-callout {
+    margin-bottom: var(--space-lg);
   }
 
   .store-detail__gallery,

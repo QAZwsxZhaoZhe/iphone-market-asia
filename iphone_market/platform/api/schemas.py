@@ -69,6 +69,16 @@ class MerchantPublic(BaseModel):
     created_at: datetime
 
 
+class MerchantApply(BaseModel):
+    legal_name: str = Field(min_length=1, max_length=180)
+    display_name: str = Field(min_length=1, max_length=120)
+    merchant_type: str = Field(default="business", max_length=24)
+
+
+class MerchantStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(pending|active|suspended|closed)$")
+
+
 class InventoryItemCreate(BaseModel):
     merchant_id: str
     phone_variant_id: str
@@ -83,6 +93,17 @@ class InventoryItemCreate(BaseModel):
 
 class QuickSellerListingCreate(BaseModel):
     merchant_id: str
+    phone_variant_id: str
+    condition_grade: str = Field(default="B", max_length=16)
+    price_hkd: float = Field(gt=0)
+    battery_health_pct: int | None = Field(default=None, ge=0, le=100)
+    title: str = Field(default="", max_length=500)
+    description: str = Field(default="", max_length=10000)
+    warranty_days: int = Field(default=30, ge=0, le=3650)
+    images: list[str] = Field(default_factory=list)
+
+
+class SellerQuickListingCreate(BaseModel):
     phone_variant_id: str
     condition_grade: str = Field(default="B", max_length=16)
     price_hkd: float = Field(gt=0)

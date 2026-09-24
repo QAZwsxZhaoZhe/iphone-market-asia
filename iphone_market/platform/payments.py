@@ -463,6 +463,37 @@ def list_internal_orders(
     return list(session.scalars(stmt.limit(max(1, min(limit, 500)))).unique())
 
 
+def get_merchant_order(
+    session: Session,
+    *,
+    merchant_id: str,
+    order_id: str,
+) -> models.Order | None:
+    return session.scalar(
+        _order_query().where(
+            models.Order.id == order_id,
+            models.Order.merchant_id == merchant_id,
+        )
+    )
+
+
+def list_merchant_orders(
+    session: Session,
+    *,
+    merchant_id: str,
+    status: str | None = None,
+    limit: int = 100,
+) -> list[models.Order]:
+    stmt = (
+        _order_query()
+        .where(models.Order.merchant_id == merchant_id)
+        .order_by(models.Order.created_at.desc())
+    )
+    if status:
+        stmt = stmt.where(models.Order.status == status)
+    return list(session.scalars(stmt.limit(max(1, min(limit, 500)))).unique())
+
+
 def cancel_order(
     session: Session,
     *,
@@ -625,6 +656,51 @@ def fulfill_order(
     order = session.scalar(
         select(models.Order)
         .where(models.Order.id == order_id)
+        .with_for_update()
+    )
+    if order is None:
+        raise OrderError("訂單不存在")
+    allowed = (
+        {"paid", "processing"}
+        if target_status == "shipped"
+        else {"paid"}
+    )
+    if order.status not in allowed:
+        raise OrderError("目前訂單狀態不能執行此履約操作")
+    previous = order.status
+    order.status = target_status
+    order.fulfillment_status = target_status
+    if target_status == "shipped":
+        order.fulfilled_at = _utc_now()
+    _record_order_event(
+        session,
+        order,
+        from_status=previous,
+        to_status=target_status,
+        actor=actor,
+        reason=note.strip()[:1000] or "merchant_fulfilled",
+    )
+    session.flush()
+    return order
+
+
+def fulfill_merchant_order(
+    session: Session,
+    *,
+    merchant_id: str,
+    order_id: str,
+    target_status: str,
+    actor: str,
+    note: str = "",
+) -> models.Order:
+    if target_status not in FULFILLMENT_STATUSES:
+        raise OrderError("履約狀態必須是 processing 或 shipped")
+    order = session.scalar(
+        select(models.Order)
+        .where(
+            models.Order.id == order_id,
+            models.Order.merchant_id == merchant_id,
+        )
         .with_for_update()
     )
     if order is None:

@@ -71,6 +71,22 @@ export async function createMerchantAction(formData: FormData): Promise<void> {
   });
 }
 
+export async function updateMerchantStatusAction(
+  formData: FormData,
+): Promise<void> {
+  return runAction(async () => {
+    const status = text(formData, "status");
+    if (!["pending", "active", "suspended", "closed"].includes(status)) {
+      throw new Error("商家狀態無效");
+    }
+    const merchant = await api.updateMerchantStatus(
+      text(formData, "merchant_id"),
+      status as "pending" | "active" | "suspended" | "closed",
+    );
+    return `已更新 ${merchant.display_name} 為${merchantStatusLabel(status)}`;
+  });
+}
+
 export async function createInventoryAction(formData: FormData): Promise<void> {
   return runAction(async () => {
     const batteryHealth = numberValue(formData, "battery_health_pct");
@@ -139,4 +155,15 @@ export async function publishSellerListingAction(
 
 function commissionPercent(value: number): number {
   return Math.max(0, Math.min(value, 50));
+}
+
+function merchantStatusLabel(status: string): string {
+  return (
+    {
+      pending: "待審核",
+      active: "已核准",
+      suspended: "已暫停",
+      closed: "已關閉",
+    }[status] ?? status
+  );
 }

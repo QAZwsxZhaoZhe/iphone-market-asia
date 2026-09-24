@@ -21,6 +21,7 @@ from ..identity import (
     IdentityError,
     create_user,
     authenticate_user,
+    ensure_user_role,
     issue_session,
     list_users,
     revoke_session,
@@ -45,8 +46,10 @@ from .schemas import (
     LoginRequest,
     ListingPage,
     ListingPublic,
+    MerchantApply,
     MerchantCreate,
     MerchantPublic,
+    MerchantStatusUpdate,
     OrderCreateRequest,
     OrderPublic,
     PaymentIntentPublic,
@@ -57,6 +60,7 @@ from .schemas import (
     RefundCreateRequest,
     RefundPublic,
     RegisterRequest,
+    SellerQuickListingCreate,
     SellerListingCreate,
     SessionPublic,
     SnapshotPublic,
@@ -97,6 +101,28 @@ def _buyer_user_id(principal: Principal) -> str:
             detail="此操作需要買家帳戶",
         )
     return principal.user_id
+
+
+def _public_user_id(principal: Principal) -> str:
+    if principal.internal or not principal.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="此操作需要一般使用者帳戶",
+        )
+    return principal.user_id
+
+
+def _seller_merchant_or_404(
+    session: Session,
+    principal: Principal,
+):
+    merchant = commerce.get_owned_merchant(
+        session,
+        owner_user_id=_public_user_id(principal),
+    )
+    if merchant is None:
+        raise HTTPException(status_code=404, detail="尚未申請成為賣家")
+    return merchant
 
 
 @public_router.get("/healthz")
@@ -467,6 +493,163 @@ def store_listing(
     return commerce.seller_listing_payload(listing)
 
 
+@public_router.get(
+    "/v1/seller/profile",
+    response_model=MerchantPublic | None,
+)
+def seller_profile(
+    session: SessionDep,
+    principal: Authenticated,
+) -> dict[str, Any] | None:
+    merchant = commerce.get_owned_merchant(
+        session,
+        owner_user_id=_public_user_id(principal),
+    )
+    return commerce.merchant_payload(merchant) if merchant else None
+
+
+@public_router.post(
+    "/v1/seller/apply",
+    response_model=MerchantPublic,
+)
+def seller_apply(
+    payload: MerchantApply,
+    session: SessionDep,
+    principal: Authenticated,
+) -> dict[str, Any]:
+    user_id = _public_user_id(principal)
+    try:
+        merchant = commerce.apply_merchant(
+            session,
+            owner_user_id=user_id,
+            legal_name=payload.legal_name,
+            display_name=payload.display_name,
+            merchant_type=payload.merchant_type,
+        )
+        ensure_user_role(session, user_id=user_id, role="merchant")
+    except (commerce.CommerceError, IdentityError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    repository.record_audit(
+        session,
+        actor=principal.subject,
+        action="seller.apply",
+        resource_type="merchant",
+        resource_id=merchant.id,
+    )
+    return commerce.merchant_payload(merchant)
+
+
+@public_router.get(
+    "/v1/seller/listings",
+    response_model=list[StoreListingPublic],
+)
+def seller_listings(
+    session: SessionDep,
+    principal: Authenticated,
+    listing_status: str | None = Query(None, alias="status"),
+    limit: int = Query(100, ge=1, le=200),
+) -> list[dict[str, Any]]:
+    merchant = _seller_merchant_or_404(session, principal)
+    return [
+        commerce.seller_listing_payload(listing)
+        for listing in commerce.list_seller_listings(
+            session,
+            merchant_id=merchant.id,
+            status=listing_status,
+            limit=limit,
+        )
+    ]
+
+
+@public_router.post(
+    "/v1/seller/listings/quick",
+    response_model=StoreListingPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+def seller_quick_create_listing(
+    payload: SellerQuickListingCreate,
+    session: SessionDep,
+    principal: Authenticated,
+) -> dict[str, Any]:
+    merchant = _seller_merchant_or_404(session, principal)
+    try:
+        listing = commerce.quick_create_seller_listing(
+            session,
+            merchant_id=merchant.id,
+            phone_variant_id=payload.phone_variant_id,
+            condition_grade=payload.condition_grade,
+            price_hkd=payload.price_hkd,
+            battery_health_pct=payload.battery_health_pct,
+            title=payload.title,
+            description=payload.description,
+            warranty_days=payload.warranty_days,
+            images=payload.images,
+        )
+    except commerce.CommerceError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    repository.record_audit(
+        session,
+        actor=principal.subject,
+        action="seller_listing.quick_create",
+        resource_type="seller_listing",
+        resource_id=listing.id,
+        details={"merchant_id": merchant.id},
+    )
+    return commerce.seller_listing_payload(listing)
+
+
+@public_router.get("/v1/seller/orders", response_model=list[OrderPublic])
+def seller_orders(
+    session: SessionDep,
+    principal: Authenticated,
+    order_status: str | None = Query(None, alias="status"),
+    limit: int = Query(100, ge=1, le=500),
+) -> list[dict[str, Any]]:
+    merchant = _seller_merchant_or_404(session, principal)
+    return [
+        payments.order_payload(order)
+        for order in payments.list_merchant_orders(
+            session,
+            merchant_id=merchant.id,
+            status=order_status,
+            limit=limit,
+        )
+    ]
+
+
+@public_router.post(
+    "/v1/seller/orders/{order_id}/fulfill",
+    response_model=OrderPublic,
+)
+def seller_fulfill_order(
+    order_id: str,
+    payload: FulfillOrderRequest,
+    session: SessionDep,
+    principal: Authenticated,
+) -> dict[str, Any]:
+    merchant = _seller_merchant_or_404(session, principal)
+    try:
+        order = payments.fulfill_merchant_order(
+            session,
+            merchant_id=merchant.id,
+            order_id=order_id,
+            target_status=payload.status,
+            actor=f"merchant:{merchant.id}",
+            note=payload.note,
+        )
+    except payments.OrderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    repository.record_audit(
+        session,
+        actor=principal.subject,
+        action="seller_order.fulfill",
+        resource_type="order",
+        resource_id=order.id,
+        details={"merchant_id": merchant.id, "status": payload.status},
+    )
+    return payments.order_payload(order)
+
+
 @public_router.post(
     "/v1/store/orders",
     response_model=OrderPublic,
@@ -768,6 +951,35 @@ def internal_create_merchant(
         action="merchant.create",
         resource_type="merchant",
         resource_id=merchant.id,
+    )
+    return commerce.merchant_payload(merchant)
+
+
+@internal_router.post(
+    "/merchants/{merchant_id}/status",
+    response_model=MerchantPublic,
+)
+def internal_update_merchant_status(
+    merchant_id: str,
+    payload: MerchantStatusUpdate,
+    session: SessionDep,
+    principal: InternalOperator,
+) -> dict[str, Any]:
+    try:
+        merchant = commerce.update_merchant_status(
+            session,
+            merchant_id=merchant_id,
+            status=payload.status,
+        )
+    except commerce.CommerceError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    repository.record_audit(
+        session,
+        actor=principal.subject,
+        action="merchant.status",
+        resource_type="merchant",
+        resource_id=merchant.id,
+        details={"status": merchant.status},
     )
     return commerce.merchant_payload(merchant)
 

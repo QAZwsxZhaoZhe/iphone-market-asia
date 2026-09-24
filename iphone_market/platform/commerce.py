@@ -66,6 +66,61 @@ def create_merchant(
     return merchant
 
 
+def get_owned_merchant(
+    session: Session,
+    *,
+    owner_user_id: str,
+) -> models.Merchant | None:
+    return session.scalar(
+        select(models.Merchant)
+        .options(joinedload(models.Merchant.owner))
+        .where(models.Merchant.owner_user_id == owner_user_id)
+        .order_by(models.Merchant.created_at.asc())
+        .limit(1)
+    )
+
+
+def apply_merchant(
+    session: Session,
+    *,
+    owner_user_id: str,
+    legal_name: str,
+    display_name: str,
+    merchant_type: str = "business",
+) -> models.Merchant:
+    existing = get_owned_merchant(session, owner_user_id=owner_user_id)
+    if existing is not None:
+        return existing
+    selected_type = merchant_type.strip().lower()
+    if selected_type not in {"business", "individual"}:
+        raise CommerceError("公開申請只支援 B2C 商家或個人賣家")
+    return create_merchant(
+        session,
+        legal_name=legal_name,
+        display_name=display_name,
+        merchant_type=selected_type,
+        owner_user_id=owner_user_id,
+        status="pending",
+    )
+
+
+def update_merchant_status(
+    session: Session,
+    *,
+    merchant_id: str,
+    status: str,
+) -> models.Merchant:
+    selected_status = status.strip().lower()
+    if selected_status not in MERCHANT_STATUSES:
+        raise CommerceError("商家狀態無效")
+    merchant = session.get(models.Merchant, merchant_id)
+    if merchant is None:
+        raise CommerceError("商家不存在")
+    merchant.status = selected_status
+    session.flush()
+    return merchant
+
+
 def list_merchants(session: Session, *, limit: int = 100) -> list[models.Merchant]:
     return list(
         session.scalars(
@@ -307,7 +362,10 @@ def store_listings(
     offset: int = 0,
     limit: int = 30,
 ) -> tuple[list[models.SellerListing], int]:
-    clauses = [models.SellerListing.status == "active"]
+    clauses = [
+        models.SellerListing.status == "active",
+        models.Merchant.status == "active",
+    ]
     if model:
         clauses.append(models.PhoneVariant.model == model)
     if storage_gb is not None:
@@ -322,6 +380,10 @@ def store_listings(
         select(func.count(models.SellerListing.id))
         .join(models.InventoryItem)
         .join(models.PhoneVariant)
+        .join(
+            models.Merchant,
+            models.Merchant.id == models.SellerListing.merchant_id,
+        )
         .where(*clauses)
     )
     total = int(session.scalar(count_stmt) or 0)
@@ -340,12 +402,14 @@ def get_store_listing(
     listing_id: str,
 ) -> models.SellerListing | None:
     return session.scalar(
-        _seller_listing_query().where(
+        _seller_listing_query()
+        .where(
             or_(
                 models.SellerListing.id == listing_id,
                 models.SellerListing.slug == listing_id,
             ),
             models.SellerListing.status == "active",
+            models.Merchant.status == "active",
         )
     )
 
@@ -425,6 +489,10 @@ def _seller_listing_query():
         select(models.SellerListing)
         .join(models.SellerListing.inventory_item)
         .join(models.InventoryItem.variant)
+        .join(
+            models.Merchant,
+            models.Merchant.id == models.SellerListing.merchant_id,
+        )
         .options(
             joinedload(models.SellerListing.merchant),
             joinedload(models.SellerListing.inventory_item).joinedload(

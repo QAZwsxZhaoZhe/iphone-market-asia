@@ -27,6 +27,7 @@ import {
   createMerchantAction,
   publishSellerListingAction,
   quickCreateSellerListingAction,
+  updateMerchantStatusAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -290,6 +291,7 @@ export default async function CatalogPage({
                     <th>狀態</th>
                     <th>佣金</th>
                     <th>建立時間</th>
+                    {canOperate ? <th>操作</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -307,6 +309,61 @@ export default async function CatalogPage({
                       <td className="mono">
                         {formatDateTime(merchant.created_at)}
                       </td>
+                      {canOperate ? (
+                        <td>
+                          <div className="table-actions">
+                            {merchant.status !== "active" ? (
+                              <form action={updateMerchantStatusAction}>
+                                <input
+                                  name="merchant_id"
+                                  type="hidden"
+                                  value={merchant.id}
+                                />
+                                <input
+                                  name="status"
+                                  type="hidden"
+                                  value="active"
+                                />
+                                <SubmitButton small>
+                                  {merchant.status === "pending"
+                                    ? "核准"
+                                    : "恢復"}
+                                </SubmitButton>
+                              </form>
+                            ) : null}
+                            {merchant.status === "active" ? (
+                              <form action={updateMerchantStatusAction}>
+                                <input
+                                  name="merchant_id"
+                                  type="hidden"
+                                  value={merchant.id}
+                                />
+                                <input
+                                  name="status"
+                                  type="hidden"
+                                  value="suspended"
+                                />
+                                <SubmitButton small>暫停</SubmitButton>
+                              </form>
+                            ) : null}
+                            {merchant.status === "suspended" ? (
+                              <form action={updateMerchantStatusAction}>
+                                <input
+                                  name="merchant_id"
+                                  type="hidden"
+                                  value={merchant.id}
+                                />
+                                <input
+                                  name="status"
+                                  type="hidden"
+                                  value="closed"
+                                />
+                                <SubmitButton small>關閉</SubmitButton>
+                              </form>
+                            ) : null}
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>

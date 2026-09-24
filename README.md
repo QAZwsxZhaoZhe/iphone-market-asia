@@ -7,8 +7,8 @@
 当前代码已具备用户与角色、Cookie 登录、商家、库存、平台销售商品、公开商店、订单、
 付款回调、履约、退款、商家结算、复式账本和运营台闭环。开发环境默认使用内置 mock PSP
 完成端到端验证；生产环境禁止 mock，必须配置真实持牌 PSP。Stripe Checkout 适配器和签名
-回调契约已实现并有自动化覆盖，但尚未使用真实 Stripe 凭证和账户完成沙箱验收。C2C、个人
-卖家自主发布和商家自助入驻在后续阶段开放。
+回调契约已实现并有自动化覆盖，但尚未使用真实 Stripe 凭证和账户完成沙箱验收。B2C 商家
+自助入驻、卖家中心、快速上架和卖家履约已开放；C2C 个人卖家自主交易仍在后续阶段。
 
 当前实现采用“模块化单体 + 异步采集 Worker”：
 
@@ -61,12 +61,13 @@ Celery Beat -> Collection Queue -> Browser Worker / HTTP Worker
 
 ## 端与设备边界
 
-- `/`、`/store`、`/market`、`/listings/[id]`、`/sources`、`/login`、`/account/orders`：买卖家共用的公开网站。首版实际开放买家注册、商品浏览和订单；卖家自助上架与 C2C 能力仍在后续阶段。
+- `/`、`/store`、`/market`、`/listings/[id]`、`/sources`、`/login`、`/account/orders`：买卖家共用的公开网站。首版开放买家注册、商品浏览、订单，以及卖家申请和卖家中心。
+- `/seller`、`/seller/listings`、`/seller/listings/new`、`/seller/orders`：公开网站内的卖家中心。一般用户可提交开店申请，审核后快速上架商品并处理已付款订单的备货和发货。
 - `/staff/login`：内部员工专用登录入口。公开买家账号不能通过此入口取得 ERP 会话，内部账号也不能从公开 `/login` 登录。
 - `/ops`、`/ops/catalog`、`/ops/orders`：电脑端 ERP，供平台管理员和运营人员管理商家、库存、销售页和订单；界面按桌面浏览器优先设计。
 - `/ops/users`：仅管理员可访问的内部账号管理页，用于建立 `admin`、`operator` 或 `analyst` 员工账号。
 - `/m`、`/m/catalog`、`/m/catalog/new`、`/m/orders`、`/m/profile`：手机及平板内部 ERP，覆盖首页摘要、商品与快速上架、订单履约、来源健康和系统维护；复用同一套内部 API、权限和写入规则。
-- 卖家自助上架和 C2C 个人卖家端尚未开放；当前商家、库存和销售页由内部运营流程维护。
+- C2C 个人卖家自主发布和买卖双方直接撮合尚未开放；当前个人卖家类型已完成数据预留。
 
 所有写入必须幂等。单来源失败不会阻塞其他来源，原始采集、标准化和估值结果均保留版本信息，方便回溯与重算。
 
@@ -319,6 +320,12 @@ GET /v1/meta
 GET /v1/store/listings
 GET /v1/store/listings/{id_or_slug}
 POST /v1/store/orders
+GET  /v1/seller/profile
+POST /v1/seller/apply
+GET  /v1/seller/listings
+POST /v1/seller/listings/quick
+GET  /v1/seller/orders
+POST /v1/seller/orders/{order_id}/fulfill
 GET  /v1/orders
 GET  /v1/orders/{order_id}
 POST /v1/orders/{order_id}/cancel
@@ -339,6 +346,7 @@ GET  /internal/v1/users
 POST /internal/v1/users
 GET  /internal/v1/merchants
 POST /internal/v1/merchants
+POST /internal/v1/merchants/{merchant_id}/status
 GET  /internal/v1/inventory
 POST /internal/v1/inventory
 GET  /internal/v1/seller-listings
@@ -375,8 +383,8 @@ PAYMENT_RETURN_URL=http://127.0.0.1:3000/account/orders
 ```
 
 下单流程为：买家提交 `Idempotency-Key` 建立订单，库存和销售页原子进入 `reserved`；买家
-建立付款请求后跳转到 PSP 结账页；签名回调成功后订单进入 `paid` 并写入付款分录；运营人员
-依次标记 `processing`、`shipped`；买家确认收貨后进入 `completed` 并建立商家结算分录；
+建立付款请求后跳转到 PSP 结账页；签名回调成功后订单进入 `paid` 并写入付款分录；卖家或
+运营人员依次标记 `processing`、`shipped`；买家确认收貨后进入 `completed` 并建立商家结算分录；
 运营退款成功后写入逆向退款分录；退货签收后由运营将退款订单的库存归位并重新上架。重复下单、
 重复回调、重复退款和重复库存归位请求均按幂等处理。
 
@@ -507,8 +515,10 @@ PAYMENT_RETURN_URL=https://www.example.com/account/orders
 
 - 香港首发、B2C 商家和平台自营商品管理。
 - 买家注册登录、HttpOnly Cookie 会话和角色权限。
+- 卖家自助申请、后台审核、卖家中心及商品归属隔离。
 - 库存、验机资料、平台商品草稿、发布和公开商店。
-- 运营台快速上架：只需商家、机型容量、成色和售价，系统自动补齐 SKU、标题和草稿发布。
+- 运营台及卖家中心快速上架：只需商家、机型容量、成色和售价，系统自动补齐 SKU、标题和草稿发布。
+- 卖家销售订单、备货和发货；商家暂停后商品自动退出公开商店。
 - 幂等下单、库存预留、订单状态机和订单历史。
 - PSP 付款请求、签名 Webhook、回调去重和付款状态。
 - 运营备货、发货、买家确认收貨和商家结算。
@@ -525,12 +535,12 @@ PAYMENT_RETURN_URL=https://www.example.com/account/orders
 首版暂不包含：
 
 - C2C 个人卖家自主发布和买卖双方直接撮合。
-- 商家自助注册、商家后台和自动结算门户。
+- 商家自动结算门户、物流面单和完整售后门户。
 - 原生 iOS 或 Android 应用。
 
 当前改造顺序：
 
-1. 已完成商店、账户、商家、库存和 B2C 订单闭环。
+1. 已完成商店、账户、商家自助入驻、卖家中心、库存和 B2C 订单闭环。
 2. 已完成 mock PSP 全链路和复式账本，并增加 Stripe 适配器契约测试。
 3. 下一步签约持牌 PSP，完成真实沙箱验收后切换生产支付。
 4. 接入物流、争议、售后、拒付、结算打款和对账运营。

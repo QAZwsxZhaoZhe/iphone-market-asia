@@ -221,6 +221,64 @@ export const api = {
       authenticated: true,
     });
   },
+  sellerProfile() {
+    return apiFetch<Merchant | null>("/v1/seller/profile", {
+      authenticated: true,
+    });
+  },
+  applySeller(payload: {
+    legal_name: string;
+    display_name: string;
+    merchant_type: "business" | "individual";
+  }) {
+    return apiFetch<Merchant>("/v1/seller/apply", {
+      method: "POST",
+      authenticated: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+  sellerListings(limit = 100) {
+    return apiFetch<StoreListing[]>(
+      `/v1/seller/listings${buildQuery({ limit })}`,
+      { authenticated: true },
+    );
+  },
+  quickCreateMyListing(payload: {
+    phone_variant_id: string;
+    condition_grade: string;
+    price_hkd: number;
+    battery_health_pct?: number | null;
+    title?: string;
+    description?: string;
+    warranty_days?: number;
+    images?: string[];
+  }) {
+    return apiFetch<StoreListing>("/v1/seller/listings/quick", {
+      method: "POST",
+      authenticated: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+  sellerOrders(status?: string, limit = 100) {
+    return apiFetch<Order[]>(
+      `/v1/seller/orders${buildQuery({ status, limit })}`,
+      { authenticated: true },
+    );
+  },
+  fulfillMyOrder(
+    orderId: string,
+    status: "processing" | "shipped",
+    note: string,
+  ) {
+    return apiFetch<Order>(`/v1/seller/orders/${orderId}/fulfill`, {
+      method: "POST",
+      authenticated: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, note }),
+    });
+  },
   internalSources() {
     return apiFetch<SourceHealth[]>("/internal/v1/sources", {
       authenticated: true,
@@ -282,6 +340,17 @@ export const api = {
       authenticated: true,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    });
+  },
+  updateMerchantStatus(
+    merchantId: string,
+    status: Merchant["status"],
+  ) {
+    return apiFetch<Merchant>(`/internal/v1/merchants/${merchantId}/status`, {
+      method: "POST",
+      authenticated: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
     });
   },
   internalInventory(limit = 200) {

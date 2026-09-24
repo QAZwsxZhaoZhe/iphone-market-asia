@@ -257,6 +257,23 @@ def get_user(session: Session, user_id: str) -> models.User:
     return user
 
 
+def ensure_user_role(
+    session: Session,
+    *,
+    user_id: str,
+    role: str,
+) -> models.User:
+    selected_role = role.strip().lower()
+    if selected_role not in VALID_ROLES:
+        raise IdentityError("不支援的角色")
+    user = get_user(session, user_id)
+    if selected_role not in roles_for_user(user):
+        session.add(models.UserRole(user_id=user.id, role=selected_role))
+        session.flush()
+        return get_user(session, user.id)
+    return user
+
+
 def list_users(
     session: Session,
     *,

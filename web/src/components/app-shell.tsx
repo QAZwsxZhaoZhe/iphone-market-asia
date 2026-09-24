@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Smartphone,
+  Store,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -47,12 +48,17 @@ export async function AppShell({ children }: { children: ReactNode }) {
               來源
             </NavLink>
             {principal?.email && !principal.internal ? (
-              <NavLink
-                href="/account/orders"
-                icon={<ReceiptText size={16} />}
-              >
-                訂單
-              </NavLink>
+              <>
+                <NavLink href="/seller" icon={<Store size={16} />}>
+                  賣家中心
+                </NavLink>
+                <NavLink
+                  href="/account/orders"
+                  icon={<ReceiptText size={16} />}
+                >
+                  訂單
+                </NavLink>
+              </>
             ) : null}
           </nav>
 
