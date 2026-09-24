@@ -7,6 +7,7 @@ import {
   ReceiptText,
   RefreshCw,
   ShieldCheck,
+  Smartphone,
   Terminal,
   Wrench,
 } from "lucide-react";
@@ -125,6 +126,10 @@ export default async function OpsPage({
           <Link className="button button--ghost button--small" href="/ops/orders">
             <ReceiptText size={14} aria-hidden="true" />
             訂單與結算
+          </Link>
+          <Link className="button button--ghost button--small" href="/m">
+            <Smartphone size={14} aria-hidden="true" />
+            手機端
           </Link>
         </div>
       </header>

@@ -62,6 +62,7 @@ Celery Beat -> Collection Queue -> Browser Worker / HTTP Worker
 ## 端与设备边界
 
 - `/ops`、`/ops/catalog`、`/ops/orders`：电脑端内部运营台，供平台管理员和运营人员管理商家、库存、销售页和订单；界面按桌面浏览器优先设计。
+- `/m`、`/m/catalog`、`/m/catalog/new`、`/m/orders`、`/m/profile`：手机及平板内部运营台，覆盖首页摘要、商品与快速上架、订单履约、来源健康和系统维护；复用同一套内部 API、权限和写入规则。
 - `/store`、`/market`、`/listings/[id]`、`/account/orders`：买家公开网站，兼容桌面与移动浏览器。
 - 卖家自助上架和 C2C 个人卖家端尚未开放；当前商家、库存和销售页由内部运营流程维护。
 
