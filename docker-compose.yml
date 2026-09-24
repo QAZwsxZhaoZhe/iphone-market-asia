@@ -1,0 +1,244 @@
+name: hk-phone-market
+
+x-app-environment: &app-environment
+  APP_ENV: ${APP_ENV:-development}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-iphone_market}:${POSTGRES_PASSWORD:-iphone_market_dev}@postgres:5432/${POSTGRES_DB:-iphone_market}
+  AUTO_CREATE_SCHEMA: "false"
+  AUTH_MODE: ${AUTH_MODE:-api_key}
+  PLATFORM_API_KEY: ${PLATFORM_API_KEY:-change-me-before-exposing}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:8000}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://127.0.0.1:3000,http://localhost:3000}
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  COLLECTION_LIMIT: ${COLLECTION_LIMIT:-30}
+  COLLECTION_MAX_RETRIES: ${COLLECTION_MAX_RETRIES:-3}
+  COLLECTION_RETRY_BACKOFF_SECONDS: ${COLLECTION_RETRY_BACKOFF_SECONDS:-60}
+  BROWSER_MAX_CONCURRENCY: ${BROWSER_MAX_CONCURRENCY:-2}
+  COLLECTION_SCHEDULE_HOUR: ${COLLECTION_SCHEDULE_HOUR:-8}
+  COLLECTION_SCHEDULE_MINUTE: ${COLLECTION_SCHEDULE_MINUTE:-0}
+  OPENSEARCH_URL: http://opensearch:9200
+  OPENSEARCH_INDEX: ${OPENSEARCH_INDEX:-hk-iphone-listings}
+  OBJECT_STORE_BACKEND: s3
+  OBJECT_STORE_BUCKET: ${OBJECT_STORE_BUCKET:-iphone-market-raw}
+  OBJECT_STORE_ENDPOINT_URL: http://minio:9000
+  OBJECT_STORE_ACCESS_KEY: ${MINIO_ROOT_USER:-iphone_market}
+  OBJECT_STORE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-iphone_market_dev}
+  OBJECT_STORE_SSE: ${OBJECT_STORE_SSE:-}
+  RAW_CAPTURE_RETENTION_DAYS: ${RAW_CAPTURE_RETENTION_DAYS:-30}
+  LISTING_STALE_HOURS: ${LISTING_STALE_HOURS:-36}
+  DEFAULT_PAGE_SIZE: ${DEFAULT_PAGE_SIZE:-30}
+  MAX_PAGE_SIZE: ${MAX_PAGE_SIZE:-100}
+  TARGET_MARGIN_PCT: ${TARGET_MARGIN_PCT:-12}
+  OPPORTUNITY_FEE_PCT: ${OPPORTUNITY_FEE_PCT:-12}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  IPHONE_MARKET_DATA_DIR: /data
+  IPHONE_MARKET_CHROME: ""
+  IPHONE_MARKET_PROXY_URL: ${IPHONE_MARKET_PROXY_URL:-}
+  AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+  AWS_EC2_METADATA_DISABLED: "true"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-iphone_market}
+      POSTGRES_USER: ${POSTGRES_USER:-iphone_market}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iphone_market_dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-iphone_market} -d ${POSTGRES_DB:-iphone_market}
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  opensearch:
+    image: opensearchproject/opensearch:2.19.1
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "${OPENSEARCH_PORT:-9200}:9200"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://localhost:9200/_cluster/health?wait_for_status=yellow
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-iphone_market}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-iphone_market_dev}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        mc alias set local http://minio:9000
+        "${MINIO_ROOT_USER:-iphone_market}"
+        "${MINIO_ROOT_PASSWORD:-iphone_market_dev}" &&
+        mc mb --ignore-existing "local/${OBJECT_STORE_BUCKET:-iphone-market-raw}" &&
+        mc anonymous set none "local/${OBJECT_STORE_BUCKET:-iphone-market-raw}"
+    restart: "no"
+
+  migrate:
+    build:
+      context: .
+    environment: *app-environment
+    command: ["iphone-platform", "migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+    environment: *app-environment
+    command: ["iphone-platform", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+    environment: *app-environment
+    command:
+      - iphone-platform
+      - worker
+      - --queue
+      - collection
+      - --queue
+      - maintenance
+      - --concurrency
+      - "2"
+    init: true
+    shm_size: "1gb"
+    volumes:
+      - worker-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: .
+    environment: *app-environment
+    command: ["iphone-platform", "beat"]
+    volumes:
+      - worker-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    environment:
+      PLATFORM_API_URL: http://api:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  opensearch-data:
+  minio-data:
+  worker-data:
