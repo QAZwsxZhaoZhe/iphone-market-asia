@@ -2,12 +2,12 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
-  History,
   Inbox,
   Monitor,
   RefreshCw,
   ShieldCheck,
   Terminal,
+  UsersRound,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -65,6 +65,7 @@ export default async function MobileProfilePage({
   const canOperate = Boolean(
     principal?.roles.some((role) => role === "admin" || role === "operator"),
   );
+  const isAdmin = Boolean(principal?.roles.includes("admin"));
   const [sources, runs, deadLetters] = await Promise.all([
     safe(api.internalSources()),
     safe(api.internalRuns(30)),
@@ -121,13 +122,6 @@ export default async function MobileProfilePage({
       />
 
       <nav className="mobile-link-list" aria-label="帳戶及裝置選項">
-        <Link href="/account/orders">
-          <span>
-            <History size={18} aria-hidden="true" />
-            我的買家訂單
-          </span>
-          <ChevronRight size={18} aria-hidden="true" />
-        </Link>
         <Link href="/ops">
           <span>
             <Monitor size={18} aria-hidden="true" />
@@ -135,6 +129,15 @@ export default async function MobileProfilePage({
           </span>
           <ChevronRight size={18} aria-hidden="true" />
         </Link>
+        {isAdmin ? (
+          <Link href="/ops/users">
+            <span>
+              <UsersRound size={18} aria-hidden="true" />
+              內部帳戶管理
+            </span>
+            <ChevronRight size={18} aria-hidden="true" />
+          </Link>
+        ) : null}
       </nav>
 
       <section

@@ -2,10 +2,10 @@ import {
   Activity,
   BarChart3,
   Database,
-  LayoutDashboard,
   LogIn,
   ReceiptText,
   Search,
+  ShieldCheck,
   ShoppingBag,
   Smartphone,
 } from "lucide-react";
@@ -46,17 +46,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
             <NavLink href="/sources" icon={<Database size={16} />}>
               來源
             </NavLink>
-            {principal?.email ? (
+            {principal?.email && !principal.internal ? (
               <NavLink
                 href="/account/orders"
                 icon={<ReceiptText size={16} />}
               >
                 訂單
-              </NavLink>
-            ) : null}
-            {principal?.internal ? (
-              <NavLink href="/ops" icon={<LayoutDashboard size={16} />}>
-                營運台
               </NavLink>
             ) : null}
           </nav>
@@ -67,7 +62,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
               <Activity size={14} aria-hidden="true" />
               HKT · HKD
             </div>
-            {principal?.email ? (
+            {principal?.internal ? (
+              <Link className="session-login" href="/ops">
+                <ShieldCheck size={16} aria-hidden="true" />
+                <span>員工 ERP</span>
+              </Link>
+            ) : principal?.email ? (
               <SessionActions
                 email={principal.email}
                 roles={principal.roles}

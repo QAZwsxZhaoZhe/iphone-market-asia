@@ -28,10 +28,10 @@ export default async function MobileOpsLayout({
 }) {
   const principal = await api.currentPrincipal().catch(() => null);
   if (!principal) {
-    redirect("/login?next=/m");
+    redirect("/staff/login?next=/m");
   }
   if (!principal.internal) {
-    redirect("/login?error=forbidden&next=/");
+    redirect("/staff/login?error=forbidden&next=/m");
   }
 
   return (

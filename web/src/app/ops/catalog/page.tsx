@@ -6,7 +6,6 @@ import {
   PackagePlus,
   ShieldCheck,
   Store,
-  UserPlus,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,7 +25,6 @@ import type {
 
 import {
   createMerchantAction,
-  createStaffUserAction,
   publishSellerListingAction,
   quickCreateSellerListingAction,
 } from "./actions";
@@ -271,68 +269,6 @@ export default async function CatalogPage({
             </div>
           </section>
 
-          {isAdmin ? (
-            <section className="panel">
-              <header className="panel__header">
-                <h2>建立內部使用者</h2>
-                <span className="subtext">
-                  <UserPlus size={13} aria-hidden="true" /> 僅管理員可操作
-                </span>
-              </header>
-              <div className="panel__body">
-                <form action={createStaffUserAction} className="catalog-form">
-                  <div className="field">
-                    <label htmlFor="staff-display-name">名稱</label>
-                    <input
-                      className="input"
-                      id="staff-display-name"
-                      maxLength={120}
-                      name="display_name"
-                      required
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="staff-email">電子郵件</label>
-                    <input
-                      className="input"
-                      id="staff-email"
-                      name="email"
-                      required
-                      type="email"
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="staff-password">初始密碼</label>
-                    <input
-                      className="input"
-                      id="staff-password"
-                      minLength={10}
-                      name="password"
-                      required
-                      type="password"
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="staff-role">角色</label>
-                    <select
-                      className="select"
-                      defaultValue="operator"
-                      id="staff-role"
-                      name="role"
-                    >
-                      <option value="operator">營運</option>
-                      <option value="analyst">分析</option>
-                      <option value="merchant">商家</option>
-                      <option value="admin">管理員</option>
-                    </select>
-                  </div>
-                  <div className="catalog-form__action">
-                    <SubmitButton>建立使用者</SubmitButton>
-                  </div>
-                </form>
-              </div>
-            </section>
-          ) : null}
             </div>
           </details>
         </div>

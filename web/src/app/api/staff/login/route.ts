@@ -18,16 +18,16 @@ export async function POST(request: Request) {
   const password =
     typeof payload.password === "string" ? payload.password : "";
   if (!email || !password) {
-    return NextResponse.json({ detail: "請輸入電子郵件和密碼" }, { status: 400 });
+    return NextResponse.json({ detail: "請輸入員工電郵和密碼" }, { status: 400 });
   }
 
   try {
     const session = await api.login({ email, password });
     const principal = await api.currentPrincipal(session.token);
-    if (principal.internal) {
+    if (!principal.internal) {
       await api.logout(session.token).catch(() => null);
       return NextResponse.json(
-        { detail: "內部員工請使用專用營運系統入口" },
+        { detail: "此帳戶沒有內部系統權限" },
         { status: 403 },
       );
     }
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
     const detail =
-      error instanceof Error ? error.message : "登入服務暫時無法使用";
+      error instanceof Error ? error.message : "員工登入服務暫時無法使用";
     return NextResponse.json({ detail }, { status });
   }
 }

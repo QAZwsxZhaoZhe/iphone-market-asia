@@ -119,8 +119,11 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
-  currentPrincipal() {
-    return apiFetch<Principal>("/v1/auth/me", { authenticated: true });
+  currentPrincipal(sessionToken?: string) {
+    return apiFetch<Principal>("/v1/auth/me", {
+      authenticated: true,
+      sessionToken,
+    });
   },
   logout(sessionToken?: string) {
     return apiFetch<{ revoked: boolean }>("/v1/auth/logout", {

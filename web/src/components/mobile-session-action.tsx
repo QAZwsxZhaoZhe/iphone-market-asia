@@ -29,7 +29,7 @@ export function MobileSessionAction({
     setSigningOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      router.replace("/login?next=/m");
+      router.replace("/staff/login?next=/m");
       router.refresh();
     } finally {
       setSigningOut(false);

@@ -12,5 +12,8 @@ export default async function AccountLayout({
   if (!principal?.user_id) {
     redirect("/login?next=/account/orders");
   }
+  if (principal.internal) {
+    redirect("/ops");
+  }
   return children;
 }

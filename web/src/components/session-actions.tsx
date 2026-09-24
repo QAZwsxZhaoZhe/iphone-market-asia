@@ -7,6 +7,7 @@ import { useState } from "react";
 type SessionActionsProps = {
   email: string;
   roles: string[];
+  signOutPath?: string;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -17,7 +18,11 @@ const ROLE_LABELS: Record<string, string> = {
   buyer: "買家",
 };
 
-export function SessionActions({ email, roles }: SessionActionsProps) {
+export function SessionActions({
+  email,
+  roles,
+  signOutPath = "/",
+}: SessionActionsProps) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -25,7 +30,7 @@ export function SessionActions({ email, roles }: SessionActionsProps) {
     setSigningOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      router.replace("/");
+      router.replace(signOutPath);
       router.refresh();
     } finally {
       setSigningOut(false);

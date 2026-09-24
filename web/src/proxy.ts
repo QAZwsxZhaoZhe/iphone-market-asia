@@ -7,7 +7,15 @@ export function proxy(request: NextRequest) {
     request.cookies.get(SESSION_COOKIE_NAME)?.value,
   );
   if (!hasSession) {
-    const loginUrl = new URL("/login", request.url);
+    const internalPath =
+      request.nextUrl.pathname === "/ops" ||
+      request.nextUrl.pathname.startsWith("/ops/") ||
+      request.nextUrl.pathname === "/m" ||
+      request.nextUrl.pathname.startsWith("/m/");
+    const loginUrl = new URL(
+      internalPath ? "/staff/login" : "/login",
+      request.url,
+    );
     loginUrl.searchParams.set(
       "next",
       `${request.nextUrl.pathname}${request.nextUrl.search}`,
@@ -18,5 +26,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/ops/:path*", "/account/:path*"],
+  matcher: ["/ops/:path*", "/m/:path*", "/account/:path*"],
 };

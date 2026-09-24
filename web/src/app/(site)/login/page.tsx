@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 type SearchParams = Promise<{
   mode?: string | string[];
   next?: string | string[];
-  error?: string | string[];
 }>;
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -90,12 +89,6 @@ export default async function LoginPage({
             買家註冊
           </Link>
         </div>
-
-        {first(params.error) === "forbidden" ? (
-          <div className="form-alert form-alert--error" role="alert">
-            此帳戶沒有營運台權限。
-          </div>
-        ) : null}
 
         {mode === "register" && !registrationEnabled ? (
           <div className="form-alert" role="status">

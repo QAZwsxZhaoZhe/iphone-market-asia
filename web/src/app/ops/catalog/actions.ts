@@ -55,18 +55,6 @@ async function runAction(action: () => Promise<string>): Promise<void> {
   finish(notice, isError);
 }
 
-export async function createStaffUserAction(formData: FormData): Promise<void> {
-  return runAction(async () => {
-    const user = await api.createStaffUser({
-      email: text(formData, "email"),
-      password: text(formData, "password"),
-      display_name: text(formData, "display_name"),
-      roles: [text(formData, "role")],
-    });
-    return `已建立使用者 ${user.email}`;
-  });
-}
-
 export async function createMerchantAction(formData: FormData): Promise<void> {
   return runAction(async () => {
     const commissionPct = numberValue(formData, "commission_pct") ?? 10;

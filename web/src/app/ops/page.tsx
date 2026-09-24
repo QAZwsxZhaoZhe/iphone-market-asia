@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Smartphone,
   Terminal,
+  Users,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -72,6 +73,7 @@ export default async function OpsPage({
   const canOperate = Boolean(
     principal?.roles.some((role) => role === "admin" || role === "operator"),
   );
+  const isAdmin = Boolean(principal?.roles.includes("admin"));
   const [sourcesResult, runsResult, auditResult, deadLettersResult] =
     await Promise.all([
       safe(api.internalSources()),
@@ -127,6 +129,15 @@ export default async function OpsPage({
             <ReceiptText size={14} aria-hidden="true" />
             訂單與結算
           </Link>
+          {isAdmin ? (
+            <Link
+              className="button button--ghost button--small"
+              href="/ops/users"
+            >
+              <Users size={14} aria-hidden="true" />
+              內部帳戶
+            </Link>
+          ) : null}
           <Link className="button button--ghost button--small" href="/m">
             <Smartphone size={14} aria-hidden="true" />
             手機端

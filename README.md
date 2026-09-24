@@ -61,9 +61,11 @@ Celery Beat -> Collection Queue -> Browser Worker / HTTP Worker
 
 ## 端与设备边界
 
-- `/ops`、`/ops/catalog`、`/ops/orders`：电脑端内部运营台，供平台管理员和运营人员管理商家、库存、销售页和订单；界面按桌面浏览器优先设计。
-- `/m`、`/m/catalog`、`/m/catalog/new`、`/m/orders`、`/m/profile`：手机及平板内部运营台，覆盖首页摘要、商品与快速上架、订单履约、来源健康和系统维护；复用同一套内部 API、权限和写入规则。
-- `/store`、`/market`、`/listings/[id]`、`/account/orders`：买家公开网站，兼容桌面与移动浏览器。
+- `/`、`/store`、`/market`、`/listings/[id]`、`/sources`、`/login`、`/account/orders`：买卖家共用的公开网站。首版实际开放买家注册、商品浏览和订单；卖家自助上架与 C2C 能力仍在后续阶段。
+- `/staff/login`：内部员工专用登录入口。公开买家账号不能通过此入口取得 ERP 会话，内部账号也不能从公开 `/login` 登录。
+- `/ops`、`/ops/catalog`、`/ops/orders`：电脑端 ERP，供平台管理员和运营人员管理商家、库存、销售页和订单；界面按桌面浏览器优先设计。
+- `/ops/users`：仅管理员可访问的内部账号管理页，用于建立 `admin`、`operator` 或 `analyst` 员工账号。
+- `/m`、`/m/catalog`、`/m/catalog/new`、`/m/orders`、`/m/profile`：手机及平板内部 ERP，覆盖首页摘要、商品与快速上架、订单履约、来源健康和系统维护；复用同一套内部 API、权限和写入规则。
 - 卖家自助上架和 C2C 个人卖家端尚未开放；当前商家、库存和销售页由内部运营流程维护。
 
 所有写入必须幂等。单来源失败不会阻塞其他来源，原始采集、标准化和估值结果均保留版本信息，方便回溯与重算。
@@ -231,9 +233,10 @@ npm run dev -- --hostname 127.0.0.1 --port 3000
 PLATFORM_API_URL=http://127.0.0.1:8000
 ```
 
-买家登录和内部员工登录均通过后端会话 API 取得 Bearer Token，Next.js 将它写入
-HttpOnly Cookie。服务端请求再通过 Cookie 读取 Token；浏览器脚本不会获得 Token。
-公开注册由 `ALLOW_PUBLIC_REGISTRATION` 控制，生产环境应同时启用 HTTPS 和 OIDC。
+买家登录、卖家公用账号和内部员工登录均通过后端会话 API 取得 Bearer Token，Next.js
+将它写入 HttpOnly Cookie。公开 `/login` 与员工 `/staff/login` 使用独立入口和角色校验；
+服务端请求再通过 Cookie 读取 Token，浏览器脚本不会获得 Token。公开注册由
+`ALLOW_PUBLIC_REGISTRATION` 控制，生产环境应同时启用 HTTPS 和 OIDC。
 
 ## 主要配置
 
