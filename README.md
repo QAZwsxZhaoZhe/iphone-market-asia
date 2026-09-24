@@ -59,6 +59,12 @@ Celery Beat -> Collection Queue -> Browser Worker / HTTP Worker
 - `ledger_account` / `ledger_journal` / `ledger_entry`：付款、结算和退款复式账本。
 - `audit_log`：重新采集、数据修正、权限和运营操作。
 
+## 端与设备边界
+
+- `/ops`、`/ops/catalog`、`/ops/orders`：电脑端内部运营台，供平台管理员和运营人员管理商家、库存、销售页和订单；界面按桌面浏览器优先设计。
+- `/store`、`/market`、`/listings/[id]`、`/account/orders`：买家公开网站，兼容桌面与移动浏览器。
+- 卖家自助上架和 C2C 个人卖家端尚未开放；当前商家、库存和销售页由内部运营流程维护。
+
 所有写入必须幂等。单来源失败不会阻塞其他来源，原始采集、标准化和估值结果均保留版本信息，方便回溯与重算。
 
 ## 目录
